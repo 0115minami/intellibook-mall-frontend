@@ -2,26 +2,24 @@
 
 export interface User {
   userId: number
-  loginName: string
-  nickName: string
+  username: string      // 后端返回 username
+  nickname: string      // 后端返回 nickname
   email: string
-  introduceSign?: string
-  lockedFlag: 0 | 1
+  isAdmin: 0 | 1       // 后端使用 isAdmin
   createTime: string
   token?: string
 }
 
 export interface LoginForm {
-  loginName: string
+  username: string  // 后端使用 username 字段
   password: string
 }
 
 export interface RegisterForm {
-  loginName: string
-  nickName: string
+  username: string   // 后端使用 username 字段
+  nickname: string   // 后端使用 nickname 字段
   email: string
   password: string
-  confirmPassword: string
 }
 
 export interface UserProfile {

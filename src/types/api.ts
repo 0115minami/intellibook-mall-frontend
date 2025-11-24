@@ -1,4 +1,4 @@
-// API 响应相关类型定义
+// API 响应类型定义
 
 export interface ApiResponse<T = any> {
   resultCode: number
@@ -8,13 +8,7 @@ export interface ApiResponse<T = any> {
 
 export interface PageResult<T> {
   list: T[]
-  totalCount: number
+  total: number
   pageNum: number
   pageSize: number
-  totalPages: number
-}
-
-export interface ApiError {
-  message: string
-  statusCode?: number
 }
