@@ -28,6 +28,10 @@ declare module 'vue' {
     AResult: typeof import('ant-design-vue/es')['Result']
     ARow: typeof import('ant-design-vue/es')['Row']
     ASpace: typeof import('ant-design-vue/es')['Space']
+    LoginForm: typeof import('./src/components/auth/LoginForm.vue')['default']
+    LoginModal: typeof import('./src/components/auth/LoginModal.vue')['default']
+    RegisterForm: typeof import('./src/components/auth/RegisterForm.vue')['default']
+    RegisterModal: typeof import('./src/components/auth/RegisterModal.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
   }

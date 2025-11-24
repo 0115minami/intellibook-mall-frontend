@@ -1,11 +1,15 @@
 <template>
   <a-config-provider :locale="zhCN">
     <router-view />
+    <LoginModal />
+    <RegisterModal />
   </a-config-provider>
 </template>
 
 <script setup lang="ts">
 import zhCN from 'ant-design-vue/es/locale/zh_CN'
+import LoginModal from '@/components/auth/LoginModal.vue'
+import RegisterModal from '@/components/auth/RegisterModal.vue'
 </script>
 
 <style>

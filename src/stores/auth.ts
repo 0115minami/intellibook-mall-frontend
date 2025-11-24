@@ -3,11 +3,17 @@ import type { User, LoginForm, RegisterForm } from '@/types/user'
 import request from '@/utils/request'
 
 export const useAuthStore = defineStore('auth', {
-  state: () => ({
-    token: '' as string,
-    user: null as User | null,
-    isLoading: false,
-  }),
+  state: () => {
+    // 从 localStorage 恢复状态
+    const savedToken = typeof window !== 'undefined' ? localStorage.getItem('auth-token') : ''
+    const savedUser = typeof window !== 'undefined' ? localStorage.getItem('auth-user') : null
+    
+    return {
+      token: savedToken || '',
+      user: savedUser ? JSON.parse(savedUser) : null,
+      isLoading: false,
+    }
+  },
 
   getters: {
     isAuthenticated: (state) => !!state.token && !!state.user,
@@ -82,17 +88,4 @@ export const useAuthStore = defineStore('auth', {
       }
     },
   },
-
 })
-
-// 手动持久化：从 localStorage 恢复状态
-if (typeof window !== 'undefined') {
-  const savedToken = localStorage.getItem('auth-token')
-  const savedUser = localStorage.getItem('auth-user')
-  
-  if (savedToken && savedUser) {
-    const authStore = useAuthStore()
-    authStore.token = savedToken
-    authStore.user = JSON.parse(savedUser)
-  }
-}

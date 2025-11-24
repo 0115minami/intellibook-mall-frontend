@@ -46,10 +46,10 @@
               </a-dropdown>
             </template>
             <template v-else>
-              <a-button type="link" @click="router.push('/login')">
+              <a-button type="link" @click="authModalStore.openLogin()">
                 登录
               </a-button>
-              <a-button type="primary" @click="router.push('/register')">
+              <a-button type="primary" @click="authModalStore.openRegister()">
                 注册
               </a-button>
             </template>
@@ -164,9 +164,11 @@ import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { UserOutlined, ShoppingCartOutlined } from '@ant-design/icons-vue'
 import { useAuthStore } from '@/stores/auth'
+import { useAuthModalStore } from '@/stores/authModal'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const authModalStore = useAuthModalStore()
 
 const selectedKeys = ref(['home'])
 const showTestModal = ref(false)
