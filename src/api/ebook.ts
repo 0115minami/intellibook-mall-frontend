@@ -23,15 +23,22 @@ export const getEBookDetail = (id: number) => {
 }
 
 /**
- * 获取分类列表
+ * 获取所有一级分类
  */
-export const getCategories = () => {
-    return request.get<any, EBookCategory[]>('/api/categories')
+export const getTopCategories = () => {
+    return request.get<any, EBookCategory[]>('/api/categories/top')
+}
+
+/**
+ * 获取指定父分类下的子分类
+ */
+export const getSubCategories = (parentId: number) => {
+    return request.get<any, EBookCategory[]>(`/api/categories/parent/${parentId}`)
 }
 
 /**
  * 获取分类下的电子书
  */
 export const getEBooksByCategory = (categoryId: number, params: Partial<EBookSearchParam>) => {
-    return request.get<any, PageResult<EBook>>(`/api/categories/${categoryId}/ebooks`, { params })
+    return request.get<any, PageResult<EBook>>(`/api/ebooks/category/${categoryId}`, { params })
 }

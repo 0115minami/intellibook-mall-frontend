@@ -7,6 +7,10 @@ const routes: RouteRecordRaw[] = [
     path: '/',
     name: 'Home',
     component: () => import('@/views/Home.vue'),
+    meta: {
+      breadcrumb: 'Main',
+      showPageNav: false
+    }
   },
   {
     path: '/login',
@@ -22,13 +26,25 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/ebooks',
-    name: 'EBooks',
-    component: () => import('@/views/ebooks/Index.vue'),
-  },
-  {
-    path: '/ebooks/:id',
-    name: 'EBookDetail',
-    component: () => import('@/views/ebooks/Detail.vue'),
+    component: () => import('@/views/ebooks/Layout.vue'),
+    meta: { breadcrumb: '电子书' },
+    children: [
+      {
+        path: '',
+        name: 'EBooks',
+        component: () => import('@/views/ebooks/Index.vue'),
+        meta: { showPageNav: true }
+      },
+      {
+        path: ':id',
+        name: 'EBookDetail',
+        component: () => import('@/views/ebooks/Detail.vue'),
+        meta: {
+          breadcrumb: '详情',
+          showPageNav: true
+        }
+      }
+    ]
   },
   {
     path: '/cart',

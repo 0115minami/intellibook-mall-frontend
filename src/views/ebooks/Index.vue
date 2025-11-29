@@ -1,67 +1,70 @@
 <template>
-  <div class="ebooks-page">
-    <!-- 搜索栏 -->
-    <SearchBar @search="handleSearch" />
+  <MainLayout>
+    <div class="ebooks-page">
+      <!-- 搜索栏 -->
+      <SearchBar @search="handleSearch" />
 
-    <!-- 书籍列表 -->
-    <div class="books-container">
-      <!-- 加载状态 -->
-      <div v-if="loading && books.length === 0" class="loading-skeleton">
-        <a-row :gutter="[24, 24]">
-          <a-col v-for="i in 20" :key="i" :xs="12" :sm="8" :md="6" :lg="4">
-            <a-skeleton-image style="width: 100%; height: 280px" />
+      <!-- 书籍列表 -->
+      <div class="books-container">
+        <!-- 加载状态 -->
+        <div v-if="loading && books.length === 0" class="loading-skeleton">
+          <a-row :gutter="[24, 24]">
+            <a-col v-for="i in 20" :key="i" :xs="12" :sm="8" :md="6" :lg="4">
+              <a-skeleton-image style="width: 100%; height: 280px" />
+            </a-col>
+          </a-row>
+        </div>
+
+        <!-- 书籍网格 -->
+        <a-row v-else-if="books.length > 0" :gutter="[24, 24]">
+          <a-col
+            v-for="book in books"
+            :key="book.bookId"
+            :xs="12"
+            :sm="8"
+            :md="6"
+            :lg="4"
+          >
+            <EBookCard :book="book" />
           </a-col>
         </a-row>
-      </div>
 
-      <!-- 书籍网格 -->
-      <a-row v-else-if="books.length > 0" :gutter="[24, 24]">
-        <a-col
-          v-for="book in books"
-          :key="book.bookId"
-          :xs="12"
-          :sm="8"
-          :md="6"
-          :lg="4"
+        <!-- 空状态 -->
+        <a-empty
+          v-else
+          description="暂无电子书"
+          style="margin: 80px 0"
         >
-          <EBookCard :book="book" />
-        </a-col>
-      </a-row>
+          <template #image>
+            <span style="font-size: 64px">📚</span>
+          </template>
+        </a-empty>
 
-      <!-- 空状态 -->
-      <a-empty
-        v-else
-        description="暂无电子书"
-        style="margin: 80px 0"
-      >
-        <template #image>
-          <span style="font-size: 64px">📚</span>
-        </template>
-      </a-empty>
+        <!-- 加载更多按钮 -->
+        <div v-if="books.length > 0 && hasMore" class="load-more">
+          <a-button
+            type="primary"
+            size="large"
+            :loading="loading"
+            @click="loadMore"
+          >
+            {{ loading ? '加载中...' : `加载更多 (剩余 ${remainingCount} 本)` }}
+          </a-button>
+        </div>
 
-      <!-- 加载更多按钮 -->
-      <div v-if="books.length > 0 && hasMore" class="load-more">
-        <a-button
-          type="primary"
-          size="large"
-          :loading="loading"
-          @click="loadMore"
-        >
-          {{ loading ? '加载中...' : `加载更多 (剩余 ${remainingCount} 本)` }}
-        </a-button>
-      </div>
-
-      <!-- 全部加载完成 -->
-      <div v-if="books.length > 0 && !hasMore" class="load-complete">
-        <a-divider>已加载全部 {{ totalCount }} 本电子书</a-divider>
+        <!-- 全部加载完成 -->
+        <div v-if="books.length > 0 && !hasMore" class="load-complete">
+          <a-divider>已加载全部 {{ totalCount }} 本电子书</a-divider>
+        </div>
       </div>
     </div>
-  </div>
+  </MainLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
+import MainLayout from '@/components/layout/MainLayout.vue'
 import SearchBar from '@/components/ebook/SearchBar.vue'
 import EBookCard from '@/components/ebook/EBookCard.vue'
 import { searchEBooks } from '@/api/ebook'
@@ -132,8 +135,6 @@ onMounted(() => {
 
 <style scoped>
 .ebooks-page {
-  min-height: 100vh;
-  background: #f0f2f5;
   padding: 24px;
 }
 

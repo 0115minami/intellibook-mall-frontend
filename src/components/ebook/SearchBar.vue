@@ -11,7 +11,7 @@
       <a-input
         v-model:value="searchKeyword"
         size="large"
-        placeholder="按书名、作者、ISBN、DOI、出版社、MD5等搜索..."
+        placeholder="按书名、作者、出版社等搜索..."
         @pressEnter="handleSearch"
       >
         <template #suffix>
@@ -24,8 +24,9 @@
 
     <!-- 高级筛选 -->
     <div v-else class="search-content advanced">
-      <a-row :gutter="16">
-        <a-col :span="8">
+      <a-row :gutter="[16, 16]">
+        <!-- 第一行：关键词和文件格式 -->
+        <a-col :span="12">
           <a-input
             v-model:value="advancedParams.keyword"
             placeholder="关键词"
@@ -44,19 +45,36 @@
             <a-select-option value="PDF">PDF</a-select-option>
             <a-select-option value="EPUB">EPUB</a-select-option>
             <a-select-option value="MOBI">MOBI</a-select-option>
+            <a-select-option value="AZW3">AZW3</a-select-option>
           </a-select>
         </a-col>
         <a-col :span="6">
           <a-select
-            v-model:value="advancedParams.categoryId"
-            placeholder="分类"
+            v-model:value="advancedParams.language"
+            placeholder="语言"
             size="large"
             style="width: 100%"
             allowClear
           >
+            <a-select-option value="">全部语言</a-select-option>
+            <a-select-option value="zh-CN">中文</a-select-option>
+            <a-select-option value="en-US">英文</a-select-option>
+          </a-select>
+        </a-col>
+
+        <!-- 第二行：一级分类、子分类和搜索按钮 -->
+        <a-col :span="8">
+          <a-select
+            v-model:value="advancedParams.parentCategoryId"
+            placeholder="一级分类"
+            size="large"
+            style="width: 100%"
+            allowClear
+            @change="handleParentCategoryChange"
+          >
             <a-select-option value="">全部分类</a-select-option>
             <a-select-option
-              v-for="category in categories"
+              v-for="category in topCategories"
               :key="category.categoryId"
               :value="category.categoryId"
             >
@@ -64,7 +82,26 @@
             </a-select-option>
           </a-select>
         </a-col>
-        <a-col :span="4">
+        <a-col :span="8">
+          <a-select
+            v-model:value="advancedParams.categoryId"
+            placeholder="子分类"
+            size="large"
+            style="width: 100%"
+            allowClear
+            :disabled="!advancedParams.parentCategoryId"
+          >
+            <a-select-option value="">全部子分类</a-select-option>
+            <a-select-option
+              v-for="category in subCategories"
+              :key="category.categoryId"
+              :value="category.categoryId"
+            >
+              {{ category.categoryName }}
+            </a-select-option>
+          </a-select>
+        </a-col>
+        <a-col :span="8">
           <a-button type="primary" size="large" block @click="handleAdvancedSearch">
             搜索
           </a-button>
@@ -75,9 +112,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import type { EBookCategory, EBookSearchParam } from '@/types/ebook'
-import { getCategories } from '@/api/ebook'
+import { getTopCategories, getSubCategories } from '@/api/ebook'
 
 const emit = defineEmits<{
   search: [params: Partial<EBookSearchParam>]
@@ -85,21 +122,54 @@ const emit = defineEmits<{
 
 const activeTab = ref('general')
 const searchKeyword = ref('')
-const categories = ref<EBookCategory[]>([])
+const topCategories = ref<EBookCategory[]>([])
+const allSubCategories = ref<EBookCategory[]>([])
 
 const advancedParams = ref({
   keyword: '',
   fileFormat: '',
+  language: '',
+  parentCategoryId: undefined as number | undefined,
   categoryId: undefined as number | undefined,
 })
 
-// 加载分类列表
-const loadCategories = async () => {
-  try {
-    categories.value = await getCategories()
-  } catch (error) {
-    console.error('加载分类失败:', error)
+// 根据选择的一级分类过滤子分类
+const subCategories = computed(() => {
+  if (!advancedParams.value.parentCategoryId) {
+    return []
   }
+  return allSubCategories.value.filter(
+    cat => cat.parentId === advancedParams.value.parentCategoryId
+  )
+})
+
+// 加载一级分类列表
+const loadTopCategories = async () => {
+  try {
+    topCategories.value = await getTopCategories()
+  } catch (error) {
+    console.error('加载一级分类失败:', error)
+  }
+}
+
+// 加载所有子分类
+const loadAllSubCategories = async () => {
+  try {
+    // 为每个一级分类加载子分类
+    const promises = topCategories.value.map(cat => 
+      getSubCategories(cat.categoryId).catch(() => [])
+    )
+    const results = await Promise.all(promises)
+    allSubCategories.value = results.flat()
+  } catch (error) {
+    console.error('加载子分类失败:', error)
+  }
+}
+
+// 一级分类改变时的处理
+const handleParentCategoryChange = () => {
+  // 清空子分类选择
+  advancedParams.value.categoryId = undefined
 }
 
 // 通用搜索
@@ -113,17 +183,24 @@ const handleSearch = () => {
 
 // 高级搜索
 const handleAdvancedSearch = () => {
+  // 确定最终使用的分类ID
+  // 如果选择了子分类，使用子分类ID
+  // 如果只选择了一级分类，使用一级分类ID（后端会自动包含子分类）
+  const categoryId = advancedParams.value.categoryId || advancedParams.value.parentCategoryId
+
   emit('search', {
     keyword: advancedParams.value.keyword || undefined,
     fileFormat: advancedParams.value.fileFormat || undefined,
-    categoryId: advancedParams.value.categoryId || undefined,
+    language: advancedParams.value.language || undefined,
+    categoryId: categoryId || undefined,
     pageNum: 1,
     pageSize: 20,
   })
 }
 
-onMounted(() => {
-  loadCategories()
+onMounted(async () => {
+  await loadTopCategories()
+  await loadAllSubCategories()
 })
 </script>
 
