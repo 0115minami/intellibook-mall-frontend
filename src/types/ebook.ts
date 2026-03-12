@@ -1,5 +1,14 @@
 // 电子书相关类型定义
 
+export interface EBookFile {
+    fileId: number
+    bookId: number
+    fileFormat: string   // PDF / EPUB / MOBI / AZW3
+    filePath: string
+    fileSize: number     // 字节
+    downloadCount: number
+}
+
 export interface EBook {
     bookId: number
     bookTitle: string
@@ -10,17 +19,19 @@ export interface EBook {
     bookIntro: string
     categoryId: number
     categoryName?: string
+    parentCategoryName?: string
     coverImg: string
     pageCount: number
     price: number
     language: string
-    tags: string
+    tags: string | string[]
     rating: number
     ratingCount: number
     status: 0 | 1
     createTime?: string
     updateTime?: string
     availableFormats?: string[]
+    files?: EBookFile[]   // 详情页返回的文件列表
 }
 
 export interface EBookSearchParam {

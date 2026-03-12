@@ -1,49 +1,703 @@
 <template>
   <MainLayout>
-    <div class="ebook-detail-page">
-      <a-card>
+    <div class="detail-page">
+
+      <!-- 加载状态 -->
+      <div v-if="loading" class="loading-wrap">
+        <a-skeleton active avatar :paragraph="{ rows: 8 }" />
+      </div>
+
+      <!-- 错误状态 -->
+      <div v-else-if="error" class="error-wrap">
         <a-result
-          status="info"
-          title="电子书详情页"
-          sub-title="此页面待实现"
+          status="404"
+          title="未找到该电子书"
+          sub-title="该电子书可能已下架或链接有误"
         >
-          <template #icon>
-            <span style="font-size: 72px">📖</span>
-          </template>
           <template #extra>
-            <a-space>
-              <a-button type="primary" @click="$router.back()">
-                返回
-              </a-button>
-              <a-button @click="$router.push('/ebooks')">
-                浏览更多电子书
-              </a-button>
-            </a-space>
+            <a-button type="primary" @click="router.push('/ebooks')">返回书库</a-button>
           </template>
-          <div class="detail-info">
-            <p>书籍 ID: {{ bookId }}</p>
-          </div>
         </a-result>
-      </a-card>
+      </div>
+
+      <!-- 详情内容 -->
+      <template v-else-if="book">
+
+        <!-- ── 主信息区 ── -->
+        <div class="main-section">
+          <!-- 封面 -->
+          <div class="cover-col">
+            <img
+              :src="coverUrl"
+              :alt="book.bookTitle"
+              class="cover-img"
+              @error="onCoverError"
+            />
+          </div>
+
+          <!-- 信息 -->
+          <div class="info-col">
+            <!-- 书名 -->
+            <h1 class="book-title">{{ book.bookTitle }}</h1>
+
+            <!-- 作者 -->
+            <div class="author">by {{ book.author }}</div>
+
+            <!-- 评分 -->
+            <div class="rating-row">
+              <a-rate :value="book.rating" allow-half disabled />
+              <span class="rating-num">{{ book.rating.toFixed(1) }}</span>
+              <span class="rating-count">（{{ book.ratingCount }} 人评分）</span>
+            </div>
+
+            <!-- 价格 -->
+            <div class="price-row">
+              <span class="price">¥{{ (book.price / 100).toFixed(2) }}</span>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="action-row">
+              <template v-if="isPurchased">
+                <!-- 已购买：显示阅读和下载 -->
+                <a-button type="primary" size="large" class="btn-read" disabled>
+                  📖 在线阅读
+                  <span class="btn-tip">（开发中）</span>
+                </a-button>
+                <a-dropdown v-if="book.files && book.files.length > 0">
+                  <a-button size="large">
+                    ⬇ 下载
+                    <DownOutlined />
+                  </a-button>
+                  <template #overlay>
+                    <a-menu>
+                      <a-menu-item
+                        v-for="file in book.files"
+                        :key="file.fileId"
+                        @click="handleDownload(file)"
+                      >
+                        {{ file.fileFormat }}
+                        <span class="file-size">（{{ formatFileSize(file.fileSize) }}）</span>
+                      </a-menu-item>
+                    </a-menu>
+                  </template>
+                </a-dropdown>
+              </template>
+              <template v-else>
+                <!-- 未购买：显示购物车和立即购买 -->
+                <a-button
+                  type="primary"
+                  size="large"
+                  :loading="addingToCart"
+                  @click="handleAddToCart"
+                >
+                  🛒 加入购物车
+                </a-button>
+                <a-button size="large" @click="handleBuyNow">
+                  立即购买
+                </a-button>
+              </template>
+
+              <!-- 收藏按钮 -->
+              <a-button
+                :type="isFavorited ? 'default' : 'dashed'"
+                size="large"
+                :loading="favoriteLoading"
+                @click="handleToggleFavorite"
+              >
+                {{ isFavorited ? '❤ 已收藏' : '🤍 收藏' }}
+              </a-button>
+            </div>
+
+            <!-- 文件格式标签 -->
+            <div v-if="book.files && book.files.length > 0" class="format-row">
+              <span class="label">可用格式：</span>
+              <a-tag
+                v-for="file in book.files"
+                :key="file.fileId"
+                color="blue"
+              >
+                {{ file.fileFormat }} · {{ formatFileSize(file.fileSize) }}
+              </a-tag>
+            </div>
+
+            <!-- 标签 -->
+            <div v-if="book.tags" class="tags-row">
+              <span class="label">标签：</span>
+              <a-tag
+                v-for="tag in tagList"
+                :key="tag"
+                class="tag-item"
+                @click="router.push(`/ebooks?keyword=${tag}`)"
+              >
+                {{ tag }}
+              </a-tag>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 详情标签页 ── -->
+        <div class="tabs-section">
+          <a-tabs v-model:activeKey="activeTab">
+            <!-- About Book -->
+            <a-tab-pane key="about" tab="书籍简介">
+              <!-- 简介 -->
+              <div class="intro-text">{{ book.bookIntro }}</div>
+
+              <!-- 元数据表格 -->
+              <a-divider />
+              <div class="meta-grid">
+                <div class="meta-row" v-if="book.categoryName">
+                  <span class="meta-label">分类：</span>
+                  <a-space>
+                    <a
+                      v-if="book.parentCategoryName"
+                      class="meta-link"
+                      @click="router.push('/ebooks')"
+                    >{{ book.parentCategoryName }}</a>
+                    <span v-if="book.parentCategoryName">›</span>
+                    <a
+                      class="meta-link"
+                      @click="router.push(`/ebooks?categoryId=${book.categoryId}`)"
+                    >{{ book.categoryName }}</a>
+                  </a-space>
+                </div>
+                <div class="meta-row">
+                  <span class="meta-label">语言：</span>
+                  <span>{{ languageLabel }}</span>
+                </div>
+                <div class="meta-row" v-if="book.publisher">
+                  <span class="meta-label">出版社：</span>
+                  <span>{{ book.publisher }}</span>
+                </div>
+                <div class="meta-row" v-if="book.publishDate">
+                  <span class="meta-label">出版日期：</span>
+                  <span>{{ book.publishDate }}</span>
+                </div>
+                <div class="meta-row" v-if="book.pageCount">
+                  <span class="meta-label">页数：</span>
+                  <span>{{ book.pageCount }} 页</span>
+                </div>
+                <div class="meta-row" v-if="book.isbn">
+                  <span class="meta-label">ISBN：</span>
+                  <span>{{ book.isbn }}</span>
+                </div>
+              </div>
+            </a-tab-pane>
+
+            <!-- Comments -->
+            <a-tab-pane key="comments" tab="评论">
+              <div class="comments-section">
+                <!-- 顶栏操作区 -->
+                <div class="comments-header">
+                  <h3>全部评论 ({{ reviewTotal }})</h3>
+                  <a-button type="primary" @click="handleWriteReview">
+                    ✍️ 写评价
+                  </a-button>
+                </div>
+
+                <a-divider />
+
+                <!-- 评论列表 -->
+                <a-skeleton :loading="reviewsLoading" active>
+                  <template v-if="reviews.length > 0">
+                    <div v-for="review in reviews" :key="review.reviewId" class="review-item">
+                      <div class="review-meta">
+                        <span class="review-author">{{ review.nickname || review.username }}</span>
+                        <a-rate :value="review.rating" disabled class="review-rating" />
+                      </div>
+                      <div class="review-content">{{ review.content }}</div>
+                      <div class="review-footer">
+                        <span class="review-time">{{ review.createTime }}</span>
+                        <a-button type="text" size="small" class="btn-like" @click="handleLikeReview(review)">
+                          👍 {{ review.likeCount || 0 }}
+                        </a-button>
+                      </div>
+                      <a-divider style="margin: 16px 0;" />
+                    </div>
+
+                    <!-- 分页（如果在真实情况需要） -->
+                    <div class="pagination-wrapper" v-if="reviewTotal > reviews.length">
+                       <a-button type="dashed" block @click="loadReviews(true)">加载更多评论...</a-button>
+                    </div>
+                  </template>
+                  
+                  <a-empty v-else description="暂无评价，快来抢沙发吧！" />
+                </a-skeleton>
+              </div>
+            </a-tab-pane>
+          </a-tabs>
+        </div>
+
+        <!-- ── 相关推荐区（开发中，等待后端推荐 API） ──
+        <div class="recommend-section">
+          <h2 class="section-title">您可能会感兴趣</h2>
+          <a-row :gutter="[16, 16]">
+            <a-col
+              v-for="item in relatedBooks"
+              :key="item.bookId"
+              :xs="12" :sm="8" :md="6" :lg="4" :xl="3"
+            >
+              <EBookCard :book="item" />
+            </a-col>
+          </a-row>
+        </div>
+        -->
+
+      </template>
     </div>
   </MainLayout>
 </template>
 
 <script setup lang="ts">
-import { useRoute } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { message } from 'ant-design-vue'
+import { DownOutlined } from '@ant-design/icons-vue'
 import MainLayout from '@/components/layout/MainLayout.vue'
+import { getEBookDetail } from '@/api/ebook'
+import { getBookReviews } from '@/api/review'
+import { useAuthStore } from '@/stores/auth'
+import { useAuthModalStore } from '@/stores/authModal'
+import type { EBook, EBookFile } from '@/types/ebook'
+import type { Review } from '@/types/review'
 
 const route = useRoute()
-const bookId = route.params.id
+const router = useRouter()
+const authStore = useAuthStore()
+const authModalStore = useAuthModalStore()
+
+// ── 状态 ──
+const book = ref<EBook | null>(null)
+const loading = ref(true)
+const error = ref(false)
+const activeTab = ref('about')
+const addingToCart = ref(false)
+const favoriteLoading = ref(false)
+const isFavorited = ref(false)   // TODO: 接入收藏 API
+const isPurchased = ref(false)   // TODO: 接入订单 API 检查是否已购买
+
+// ── 评价专属状态 ──
+const reviews = ref<Review[]>([])
+const reviewsLoading = ref(false)
+const reviewTotal = ref(0)
+const reviewPage = ref(1)
+const REVIEWS_PAGE_SIZE = 5
+
+// ── 计算属性 ──
+const coverUrl = computed(() => {
+  const coverImg = book.value?.coverImg
+  if (!coverImg) return ''
+  const baseUrl = import.meta.env.VITE_COVER_BASE || 'http://localhost:8080/files/covers'
+  // 已是完整 URL 直接返回
+  if (coverImg.startsWith('http')) return coverImg
+  // 去掉 covers/ 前缀后拼接，避免双重路径
+  return `${baseUrl}/${coverImg.replace(/^covers\//, '')}`
+})
+
+const tagList = computed(() => {
+  const tags = book.value?.tags
+  if (!tags) return []
+  // 后端可能返回数组或逗号分隔字符串，统一处理
+  if (Array.isArray(tags)) return tags.filter(Boolean)
+  return String(tags).split(',').map(t => t.trim()).filter(Boolean)
+})
+
+const languageLabel = computed(() => {
+  const map: Record<string, string> = {
+    'zh-CN': '中文',
+    'en-US': '英文',
+    'ja-JP': '日文',
+    'ko-KR': '韩文',
+  }
+  return map[book.value?.language ?? ''] ?? book.value?.language ?? '—'
+})
+
+// ── 加载详情 ──
+const loadDetail = async () => {
+  const id = Number(route.params.id)
+  if (!id) { error.value = true; loading.value = false; return }
+  try {
+    book.value = await getEBookDetail(id)
+  } catch {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+// ── 封面加载失败 ──
+const onCoverError = (e: Event) => {
+  (e.target as HTMLImageElement).src = '/placeholder-cover.png'
+}
+
+// ── 文件大小格式化 ──
+const formatFileSize = (bytes: number): string => {
+  if (!bytes) return '—'
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+}
+
+// ── 加入购物车 ──
+const handleAddToCart = async () => {
+  if (!authStore.isAuthenticated) {
+    authModalStore.openLogin()
+    message.info('请先登录')
+    return
+  }
+  addingToCart.value = true
+  try {
+    // TODO: 调用购物车 API
+    // await addToCart({ bookId: book.value!.bookId })
+    message.success('已加入购物车')
+  } catch (e: any) {
+    message.error(e.message || '操作失败')
+  } finally {
+    addingToCart.value = false
+  }
+}
+
+// ── 立即购买 ──
+const handleBuyNow = () => {
+  if (!authStore.isAuthenticated) {
+    authModalStore.openLogin()
+    message.info('请先登录')
+    return
+  }
+  // TODO: 直接进入结算
+  message.info('订单功能开发中')
+}
+
+// ── 下载 ──
+const handleDownload = (file: EBookFile) => {
+  // TODO: 调用下载 API 获取临时链接
+  message.info(`下载功能开发中（${file.fileFormat}）`)
+}
+
+// ── 收藏 ──
+const handleToggleFavorite = async () => {
+  if (!authStore.isAuthenticated) {
+    authModalStore.openLogin()
+    message.info('请先登录')
+    return
+  }
+  favoriteLoading.value = true
+  try {
+    // TODO: 调用收藏 API
+    isFavorited.value = !isFavorited.value
+    message.success(isFavorited.value ? '已收藏' : '已取消收藏')
+  } finally {
+    favoriteLoading.value = false
+  }
+}
+
+// ── 获取评价列表 ──
+const loadReviews = async (loadMore = false) => {
+  const id = Number(route.params.id)
+  if (!id) return
+
+  if (loadMore) {
+    reviewPage.value++
+  } else {
+    reviewPage.value = 1
+    reviews.value = []
+  }
+
+  reviewsLoading.value = true
+  try {
+    const res = await getBookReviews(id, {
+      pageNum: reviewPage.value,
+      pageSize: REVIEWS_PAGE_SIZE
+    })
+    if (loadMore) {
+      reviews.value.push(...res.list)
+    } else {
+      reviews.value = res.list
+    }
+    reviewTotal.value = res.totalCount
+  } catch (e: any) {
+    // 忽略特定失败，对于尚未开发完成的后端可能报错
+  } finally {
+    reviewsLoading.value = false
+  }
+}
+
+// ── 写评价 ──
+const handleWriteReview = () => {
+  if (!authStore.isAuthenticated) {
+    authModalStore.openLogin()
+    message.info('请先登录再发表评价')
+    return
+  }
+  message.info('发表评价功能开发中')
+}
+
+// ── 点赞评价 ──
+const handleLikeReview = (review: Review) => {
+  if (!authStore.isAuthenticated) {
+    authModalStore.openLogin()
+    message.info('请先登录即可体验点赞')
+    return
+  }
+  message.info('点赞评价功能开发中')
+}
+
+onMounted(() => {
+  loadDetail()
+  loadReviews()
+})
 </script>
 
 <style scoped>
-.ebook-detail-page {
-  padding: 24px;
+.detail-page {
+  max-width: 1100px;
+  margin: 32px auto;
+  padding: 0 24px 60px;
 }
 
-.detail-info {
-  margin-top: 24px;
+/* ── 加载 / 错误 ── */
+.loading-wrap,
+.error-wrap {
+  margin: 60px auto;
+}
+
+/* ── 主信息区 ── */
+.main-section {
+  display: flex;
+  gap: 48px;
+  align-items: flex-start;
+}
+
+.cover-col {
+  flex-shrink: 0;
+}
+
+.cover-img {
+  width: 220px;
+  height: auto;
+  max-height: 320px;
+  object-fit: cover;
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.info-col {
+  flex: 1;
+  min-width: 0;
+}
+
+.book-title {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin-bottom: 8px;
+  color: #1a1a1a;
+}
+
+.author {
+  font-size: 15px;
+  color: #555;
+  margin-bottom: 16px;
+}
+
+.rating-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.rating-num {
+  font-size: 18px;
+  font-weight: 600;
+  color: #faad14;
+}
+
+.rating-count {
+  color: #999;
+  font-size: 14px;
+}
+
+.price-row {
+  margin-bottom: 24px;
+}
+
+.price {
+  font-size: 32px;
+  font-weight: 700;
+  color: #e53e3e;
+}
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.btn-read .btn-tip {
+  font-size: 12px;
+  opacity: 0.7;
+  margin-left: 4px;
+}
+
+.format-row,
+.tags-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.label {
   color: #666;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.tag-item {
+  cursor: pointer;
+}
+
+.tag-item:hover {
+  opacity: 0.8;
+}
+
+.file-size {
+  color: #999;
+  font-size: 12px;
+}
+
+/* ── 详情标签页 ── */
+.tabs-section {
+  margin-top: 48px;
+}
+
+.intro-text {
+  font-size: 15px;
+  color: #444;
+  line-height: 1.9;
+  white-space: pre-wrap;
+}
+
+/* 元数据网格 */
+.meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 32px;
+  margin-top: 8px;
+}
+
+.meta-row {
+  display: flex;
+  gap: 8px;
+  font-size: 14px;
+  align-items: baseline;
+}
+
+.meta-label {
+  color: #888;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.meta-link {
+  color: #1890ff;
+  cursor: pointer;
+}
+
+.meta-link:hover {
+  text-decoration: underline;
+}
+
+/* ── 评论区 ── */
+.comments-section {
+  padding-top: 16px;
+}
+
+.comments-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.comments-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.review-item {
+  padding: 8px 0;
+}
+
+.review-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.review-author {
+  font-weight: 600;
+  color: #333;
+}
+
+.review-rating {
+  font-size: 14px;
+}
+
+.review-content {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #555;
+  margin-bottom: 12px;
+  white-space: pre-wrap;
+}
+
+.review-footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: #999;
+}
+
+.review-time {
+  font-size: 12px;
+}
+
+.btn-like {
+  color: #888;
+}
+
+.btn-like:hover {
+  color: #1890ff;
+}
+
+.pagination-wrapper {
+  margin-top: 24px;
+  text-align: center;
+}
+
+/* ── 响应式 ── */
+@media (max-width: 640px) {
+  .main-section {
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .cover-img {
+    width: 100%;
+    max-height: 260px;
+  }
+
+  .book-title {
+    font-size: 20px;
+  }
+
+  .meta-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
