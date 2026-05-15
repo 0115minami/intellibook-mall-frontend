@@ -1,4 +1,4 @@
-import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios'
+import axios, { type AxiosInstance } from 'axios'
 import { message } from 'ant-design-vue'
 import router from '@/router'
 import type { ApiResponse } from '@/types/api'

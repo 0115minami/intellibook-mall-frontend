@@ -8,14 +8,28 @@
 
 <script setup lang="ts">
 import { useRouter, useRoute } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import LoginForm from '@/components/auth/LoginForm.vue'
 
 const router = useRouter()
 const route = useRoute()
+const authStore = useAuthStore()
 
 const handleSuccess = () => {
-  const redirect = (route.query.redirect as string) || '/'
-  router.push(redirect)
+  // 调试日志
+  console.log('Login success, checking user type...')
+  console.log('Auth store user:', authStore.user)
+  console.log('Is admin:', authStore.isAdmin)
+  
+  // 判断用户类型，管理员跳转到后台管理，普通用户跳转到首页或重定向地址
+  if (authStore.isAdmin) {
+    console.log('Redirecting to admin dashboard...')
+    router.push('/admin/dashboard')
+  } else {
+    console.log('Redirecting to home or redirect path...')
+    const redirect = (route.query.redirect as string) || '/'
+    router.push(redirect)
+  }
 }
 
 const handleSwitchToRegister = () => {

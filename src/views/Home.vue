@@ -30,6 +30,11 @@
                 </a-button>
                 <template #overlay>
                   <a-menu>
+                    <a-menu-item v-if="authStore.isAdmin" @click="router.push('/admin/dashboard')">
+                      <DashboardOutlined />
+                      管理后台
+                    </a-menu-item>
+                    <a-menu-divider v-if="authStore.isAdmin" />
                     <a-menu-item @click="router.push('/user/profile')">
                       个人中心
                     </a-menu-item>
@@ -162,7 +167,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { UserOutlined, ShoppingCartOutlined } from '@ant-design/icons-vue'
+import { UserOutlined, ShoppingCartOutlined, DashboardOutlined } from '@ant-design/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAuthModalStore } from '@/stores/authModal'
 

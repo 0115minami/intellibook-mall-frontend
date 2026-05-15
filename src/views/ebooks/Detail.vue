@@ -432,7 +432,7 @@ const handleWriteReview = () => {
 }
 
 // ── 点赞评价 ──
-const handleLikeReview = (review: Review) => {
+const handleLikeReview = (_review: Review) => {
   if (!authStore.isAuthenticated) {
     authModalStore.openLogin()
     message.info('请先登录即可体验点赞')

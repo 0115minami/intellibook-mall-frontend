@@ -81,6 +81,38 @@ const routes: RouteRecordRaw[] = [
       },
     ],
   },
+  // 管理员路由
+  {
+    path: '/admin',
+    component: () => import('@/views/admin/Layout.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true },
+    children: [
+      {
+        path: '',
+        redirect: '/admin/dashboard',
+      },
+      {
+        path: 'dashboard',
+        name: 'AdminDashboard',
+        component: () => import('@/views/admin/Dashboard.vue'),
+      },
+      {
+        path: 'books',
+        name: 'AdminBooks',
+        component: () => import('@/views/admin/Books.vue'),
+      },
+      {
+        path: 'orders',
+        name: 'AdminOrders',
+        component: () => import('@/views/admin/Orders.vue'),
+      },
+      {
+        path: 'users',
+        name: 'AdminUsers',
+        component: () => import('@/views/admin/Users.vue'),
+      },
+    ],
+  },
 ]
 
 const router = createRouter({
@@ -89,16 +121,34 @@ const router = createRouter({
 })
 
 // 路由守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   const authStore = useAuthStore()
 
+  // 需要登录
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next({ name: 'Login', query: { redirect: to.fullPath } })
-  } else if (to.meta.requiresGuest && authStore.isAuthenticated) {
-    next({ name: 'Home' })
-  } else {
-    next()
+    return
   }
+
+  // 需要管理员权限
+  if (to.meta.requiresAdmin) {
+    if (!authStore.isAuthenticated) {
+      next({ name: 'Login', query: { redirect: to.fullPath } })
+      return
+    }
+    if (!authStore.isAdmin) {
+      next({ name: 'Home' })
+      return
+    }
+  }
+
+  // 已登录用户访问登录/注册页
+  if (to.meta.requiresGuest && authStore.isAuthenticated) {
+    next({ name: 'Home' })
+    return
+  }
+
+  next()
 })
 
 export default router
