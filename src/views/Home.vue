@@ -63,21 +63,20 @@
       </a-layout-header>
 
       <a-layout-content class="content">
-        <div class="container">
-          <!-- Hero Section -->
-          <div class="hero">
+        <!-- Hero Section -->
+        <div class="hero">
+          <div class="container">
             <h1>欢迎来到 IntelliBook Mall</h1>
-            <p>基于 Vite + Vue 3 + TypeScript + Ant Design Vue 构建</p>
             <a-space size="large">
               <a-button type="primary" size="large" @click="router.push('/ebooks')">
                 浏览电子书
               </a-button>
-              <a-button size="large" @click="showTestModal = true">
-                测试组件
-              </a-button>
             </a-space>
           </div>
+        </div>
 
+        <!-- 主要内容区域 -->
+        <div class="container">
           <!-- 功能展示 -->
           <a-row :gutter="[24, 24]" style="margin-top: 48px">
             <a-col :xs="24" :sm="12" :md="8">
@@ -114,6 +113,15 @@
               </a-card>
             </a-col>
           </a-row>
+
+          <!-- 热门推荐区域 -->
+          <RecommendSection
+            title="🔥 热门推荐"
+            :limit="12"
+            layout="scroll"
+            :show-more="true"
+            :use-personalized="false"
+          />
         </div>
       </a-layout-content>
 
@@ -170,6 +178,7 @@ import { message } from 'ant-design-vue'
 import { UserOutlined, ShoppingCartOutlined, DashboardOutlined } from '@ant-design/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAuthModalStore } from '@/stores/authModal'
+import RecommendSection from '@/components/recommend/RecommendSection.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -195,12 +204,18 @@ const handleLogout = async () => {
   z-index: 100;
 }
 
-.container {
+.header .container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 24px;
   display: flex;
   align-items: center;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px 48px;
 }
 
 .logo {
@@ -219,15 +234,14 @@ const handleLogout = async () => {
 
 .content {
   min-height: calc(100vh - 64px - 70px);
-  padding: 48px 0;
   background: #f0f2f5;
 }
 
 .hero {
   text-align: center;
-  padding: 80px 0;
+  padding: 80px 24px;
   background: #fff;
-  border-radius: 8px;
+  margin-bottom: 48px;
 }
 
 .hero h1 {

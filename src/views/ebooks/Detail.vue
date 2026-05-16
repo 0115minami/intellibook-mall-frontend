@@ -243,6 +243,15 @@
         </div>
         -->
 
+        <!-- 猜你喜欢推荐区域 -->
+        <a-divider style="margin: 48px 0" />
+        <RecommendSection
+          title="💡 猜你喜欢"
+          :limit="8"
+          layout="grid"
+          :use-personalized="true"
+        />
+
       </template>
     </div>
   </MainLayout>
@@ -254,6 +263,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { DownOutlined } from '@ant-design/icons-vue'
 import MainLayout from '@/components/layout/MainLayout.vue'
+import RecommendSection from '@/components/recommend/RecommendSection.vue'
 import { getEBookDetail } from '@/api/ebook'
 import { getBookReviews } from '@/api/review'
 import { useAuthStore } from '@/stores/auth'

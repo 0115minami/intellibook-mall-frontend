@@ -79,6 +79,11 @@ const routes: RouteRecordRaw[] = [
         name: 'UserFavorites',
         component: () => import('@/views/user/Favorites.vue'),
       },
+      {
+        path: 'recommendations',
+        name: 'UserRecommendations',
+        component: () => import('@/views/user/Recommendations.vue'),
+      },
     ],
   },
   // 管理员路由

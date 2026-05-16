@@ -54,6 +54,7 @@ declare module 'vue' {
     LoginModal: typeof import('./src/components/auth/LoginModal.vue')['default']
     MainLayout: typeof import('./src/components/layout/MainLayout.vue')['default']
     PageNav: typeof import('./src/components/layout/PageNav.vue')['default']
+    RecommendSection: typeof import('./src/components/recommend/RecommendSection.vue')['default']
     RegisterForm: typeof import('./src/components/auth/RegisterForm.vue')['default']
     RegisterModal: typeof import('./src/components/auth/RegisterModal.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
