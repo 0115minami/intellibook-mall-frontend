@@ -60,10 +60,13 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/user',
-    name: 'User',
     component: () => import('@/views/user/Index.vue'),
     meta: { requiresAuth: true },
     children: [
+      {
+        path: '',
+        redirect: '/user/profile',
+      },
       {
         path: 'profile',
         name: 'UserProfile',
@@ -80,11 +83,23 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/user/Favorites.vue'),
       },
       {
+        path: 'reviews',
+        name: 'UserReviews',
+        component: () => import('@/views/user/Reviews.vue'),
+      },
+      {
         path: 'recommendations',
         name: 'UserRecommendations',
         component: () => import('@/views/user/Recommendations.vue'),
       },
     ],
+  },
+  // 阅读器路由（全屏，独立于 MainLayout）
+  {
+    path: '/reader/:bookId',
+    name: 'Reader',
+    component: () => import('@/views/reader/Index.vue'),
+    meta: { requiresAuth: true },
   },
   // 管理员路由
   {

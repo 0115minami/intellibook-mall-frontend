@@ -59,9 +59,14 @@
             <div class="action-row">
               <template v-if="isPurchased">
                 <!-- 已购买：显示阅读和下载 -->
-                <a-button type="primary" size="large" class="btn-read" disabled>
-                  📖 在线阅读
-                  <span class="btn-tip">（开发中）</span>
+                <a-button
+                  type="primary"
+                  size="large"
+                  class="btn-read"
+                  @click="handleRead"
+                >
+                  <ReadOutlined />
+                  在线阅读
                 </a-button>
                 <a-dropdown v-if="book.files && book.files.length > 0">
                   <a-button size="large">
@@ -261,11 +266,12 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { DownOutlined } from '@ant-design/icons-vue'
+import { DownOutlined, ReadOutlined } from '@ant-design/icons-vue'
 import MainLayout from '@/components/layout/MainLayout.vue'
 import RecommendSection from '@/components/recommend/RecommendSection.vue'
 import { getEBookDetail } from '@/api/ebook'
 import { getBookReviews } from '@/api/review'
+import { checkFavorite, addFavorite, removeFavorite, checkReadPermission } from '@/api/user-center'
 import { useAuthStore } from '@/stores/auth'
 import { useAuthModalStore } from '@/stores/authModal'
 import type { EBook, EBookFile } from '@/types/ebook'
@@ -283,8 +289,23 @@ const error = ref(false)
 const activeTab = ref('about')
 const addingToCart = ref(false)
 const favoriteLoading = ref(false)
-const isFavorited = ref(false)   // TODO: 接入收藏 API
-const isPurchased = ref(false)   // TODO: 接入订单 API 检查是否已购买
+const isFavorited = ref(false)
+const isPurchased = ref(false)
+
+// 检查收藏和购买状态
+const checkStatus = async (bookId: number) => {
+  if (!authStore.isAuthenticated) return
+  try {
+    const [favRes, readRes] = await Promise.allSettled([
+      checkFavorite(bookId),
+      checkReadPermission(bookId),
+    ])
+    if (favRes.status === 'fulfilled') isFavorited.value = favRes.value.isFavorite
+    if (readRes.status === 'fulfilled') isPurchased.value = readRes.value.hasPurchased
+  } catch {
+    // 忽略
+  }
+}
 
 // ── 评价专属状态 ──
 const reviews = ref<Review[]>([])
@@ -347,6 +368,18 @@ const formatFileSize = (bytes: number): string => {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
 }
 
+// ── 进入阅读器 ──
+const handleRead = () => {
+  const files = book.value?.files || []
+  const hasPdf = files.some(f => f.fileFormat.toLowerCase() === 'pdf')
+  const format = hasPdf ? 'pdf' : (files[0]?.fileFormat?.toLowerCase() || 'pdf')
+  router.push({
+    name: 'Reader',
+    params: { bookId: book.value!.bookId },
+    query: { format, title: book.value!.bookTitle },
+  })
+}
+
 // ── 加入购物车 ──
 const handleAddToCart = async () => {
   if (!authStore.isAuthenticated) {
@@ -392,9 +425,17 @@ const handleToggleFavorite = async () => {
   }
   favoriteLoading.value = true
   try {
-    // TODO: 调用收藏 API
-    isFavorited.value = !isFavorited.value
-    message.success(isFavorited.value ? '已收藏' : '已取消收藏')
+    if (isFavorited.value) {
+      await removeFavorite(book.value!.bookId)
+      isFavorited.value = false
+      message.success('已取消收藏')
+    } else {
+      await addFavorite(book.value!.bookId)
+      isFavorited.value = true
+      message.success('已收藏')
+    }
+  } catch {
+    message.error('操作失败')
   } finally {
     favoriteLoading.value = false
   }
@@ -452,7 +493,10 @@ const handleLikeReview = (_review: Review) => {
 }
 
 onMounted(() => {
-  loadDetail()
+  loadDetail().then(() => {
+    const id = Number(route.params.id)
+    if (id) checkStatus(id)
+  })
   loadReviews()
 })
 </script>
