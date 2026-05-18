@@ -16,10 +16,12 @@
       </a-menu>
       <div class="user-actions">
         <template v-if="authStore.isAuthenticated">
-          <a-button type="link" @click="router.push('/cart')">
-            <ShoppingCartOutlined />
-            购物车
-          </a-button>
+          <a-badge :count="cartStore.count" :offset="[-2, 4]">
+            <a-button type="link" @click="router.push('/cart')">
+              <ShoppingCartOutlined />
+              购物车
+            </a-button>
+          </a-badge>
           <a-dropdown>
             <a-button type="link">
               <UserOutlined />
@@ -56,17 +58,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { UserOutlined, ShoppingCartOutlined } from '@ant-design/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAuthModalStore } from '@/stores/authModal'
+import { useCartStore } from '@/stores/cart'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const authModalStore = useAuthModalStore()
+const cartStore = useCartStore()
 
 const selectedKeys = ref<string[]>(['home'])
 
@@ -85,9 +89,14 @@ watch(
 
 const handleLogout = async () => {
   await authStore.logout()
+  cartStore.reset()
   message.success('已退出登录')
   router.push('/')
 }
+
+onMounted(() => {
+  if (authStore.isAuthenticated) cartStore.fetchCount()
+})
 </script>
 
 <style scoped>

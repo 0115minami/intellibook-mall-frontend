@@ -7,9 +7,11 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    ABadge: typeof import('ant-design-vue/es')['Badge']
     AButton: typeof import('ant-design-vue/es')['Button']
     ACard: typeof import('ant-design-vue/es')['Card']
     ACardMeta: typeof import('ant-design-vue/es')['CardMeta']
+    ACheckbox: typeof import('ant-design-vue/es')['Checkbox']
     ACol: typeof import('ant-design-vue/es')['Col']
     AConfigProvider: typeof import('ant-design-vue/es')['ConfigProvider']
     ADatePicker: typeof import('ant-design-vue/es')['DatePicker']
@@ -35,6 +37,7 @@ declare module 'vue' {
     APagination: typeof import('ant-design-vue/es')['Pagination']
     AppHeader: typeof import('./src/components/layout/AppHeader.vue')['default']
     AProgress: typeof import('ant-design-vue/es')['Progress']
+    ARadio: typeof import('ant-design-vue/es')['Radio']
     ARate: typeof import('ant-design-vue/es')['Rate']
     AResult: typeof import('ant-design-vue/es')['Result']
     ARow: typeof import('ant-design-vue/es')['Row']
@@ -50,10 +53,12 @@ declare module 'vue' {
     ATag: typeof import('ant-design-vue/es')['Tag']
     ATextarea: typeof import('ant-design-vue/es')['Textarea']
     AUpload: typeof import('ant-design-vue/es')['Upload']
+    CheckoutModal: typeof import('./src/components/checkout/CheckoutModal.vue')['default']
     EBookCard: typeof import('./src/components/ebook/EBookCard.vue')['default']
     LoginForm: typeof import('./src/components/auth/LoginForm.vue')['default']
     LoginModal: typeof import('./src/components/auth/LoginModal.vue')['default']
     MainLayout: typeof import('./src/components/layout/MainLayout.vue')['default']
+    OrderDetailModal: typeof import('./src/components/checkout/OrderDetailModal.vue')['default']
     PageNav: typeof import('./src/components/layout/PageNav.vue')['default']
     RecommendSection: typeof import('./src/components/recommend/RecommendSection.vue')['default']
     RegisterForm: typeof import('./src/components/auth/RegisterForm.vue')['default']

@@ -259,6 +259,15 @@
 
       </template>
     </div>
+
+    <!-- 立即购买弹窗 -->
+    <CheckoutModal
+      v-if="book"
+      v-model:open="showBuyNow"
+      source="buy-now"
+      :items="[{ bookId: book.bookId, bookTitle: book.bookTitle, author: book.author, coverImg: book.coverImg, price: book.price }]"
+      @success="handleBuyNowSuccess"
+    />
   </MainLayout>
 </template>
 
@@ -269,9 +278,12 @@ import { message } from 'ant-design-vue'
 import { DownOutlined, ReadOutlined } from '@ant-design/icons-vue'
 import MainLayout from '@/components/layout/MainLayout.vue'
 import RecommendSection from '@/components/recommend/RecommendSection.vue'
+import CheckoutModal from '@/components/checkout/CheckoutModal.vue'
 import { getEBookDetail } from '@/api/ebook'
 import { getBookReviews } from '@/api/review'
 import { checkFavorite, addFavorite, removeFavorite, checkReadPermission } from '@/api/user-center'
+import { addToCart } from '@/api/cart-order'
+import { useCartStore } from '@/stores/cart'
 import { useAuthStore } from '@/stores/auth'
 import { useAuthModalStore } from '@/stores/authModal'
 import type { EBook, EBookFile } from '@/types/ebook'
@@ -281,6 +293,7 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const authModalStore = useAuthModalStore()
+const cartStore = useCartStore()
 
 // ── 状态 ──
 const book = ref<EBook | null>(null)
@@ -289,6 +302,7 @@ const error = ref(false)
 const activeTab = ref('about')
 const addingToCart = ref(false)
 const favoriteLoading = ref(false)
+const showBuyNow = ref(false)
 const isFavorited = ref(false)
 const isPurchased = ref(false)
 
@@ -389,8 +403,8 @@ const handleAddToCart = async () => {
   }
   addingToCart.value = true
   try {
-    // TODO: 调用购物车 API
-    // await addToCart({ bookId: book.value!.bookId })
+    await addToCart(book.value!.bookId)
+    cartStore.increment()
     message.success('已加入购物车')
   } catch (e: any) {
     message.error(e.message || '操作失败')
@@ -406,8 +420,13 @@ const handleBuyNow = () => {
     message.info('请先登录')
     return
   }
-  // TODO: 直接进入结算
-  message.info('订单功能开发中')
+  showBuyNow.value = true
+}
+
+const handleBuyNowSuccess = () => {
+  showBuyNow.value = false
+  isPurchased.value = true
+  router.push('/orders')
 }
 
 // ── 下载 ──
