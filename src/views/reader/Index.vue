@@ -199,7 +199,9 @@ const loadPdf = async () => {
   }
 
   try {
-    const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:8080'
+    const apiBase = import.meta.env.PROD
+      ? (import.meta.env.VITE_API_BASE || '')
+      : ''
     const url = `${apiBase}/api/bookshelf/read/${bookId.value}?format=pdf`
 
     // 用 axios 携带 token 请求，获取 ArrayBuffer
@@ -318,21 +320,47 @@ const zoomOut = () => {
 }
 
 // ── 6. 保存阅读进度 ────────────────────────────────────────
+
+// 记录最后一次需要保存的页码
+let lastSavedPage = 0
+
 const scheduleProgressSave = (page: number) => {
+  // 记录待保存的页码
+  lastSavedPage = page
+  // 防抖：2 秒内连续翻页只保存最后一次
   if (progressTimer) clearTimeout(progressTimer)
-  progressTimer = setTimeout(async () => {
-    try {
-      await updateReadProgress({
-        bookId: bookId.value,
-        fileFormat: 'pdf',
-        lastPosition: JSON.stringify({ page, progress: Math.round((page / totalPages.value) * 100) }),
-      })
-    } catch { /* 静默失败 */ }
+  progressTimer = setTimeout(() => {
+    saveProgress(page)
+    progressTimer = null
   }, 2000)
 }
 
+// 实际保存逻辑（抽离为独立函数，方便关闭时直接调用）
+const saveProgress = async (page: number) => {
+  if (!canRead.value || page <= 0 || totalPages.value <= 0) return
+  try {
+    await updateReadProgress({
+      bookId: bookId.value,
+      fileFormat: 'pdf',
+      lastPosition: JSON.stringify({
+        page,
+        progress: Math.round((page / totalPages.value) * 100),
+      }),
+    })
+  } catch { /* 静默失败 */ }
+}
+
 // ── 7. 关闭 ────────────────────────────────────────────────
-const handleClose = () => {
+const handleClose = async () => {
+  // 关闭前立即保存进度（取消防抖定时器，直接保存）
+  if (progressTimer) {
+    clearTimeout(progressTimer)
+    progressTimer = null
+  }
+  // 如果有未保存的进度，立即保存
+  if (lastSavedPage > 0) {
+    await saveProgress(lastSavedPage)
+  }
   router.back()
 }
 
@@ -353,9 +381,18 @@ onMounted(() => {
   init()
 })
 
-onBeforeUnmount(() => {
+onBeforeUnmount(async () => {
   window.removeEventListener('keydown', handleKeydown)
-  if (progressTimer) clearTimeout(progressTimer)
+  // 兜底：如果还有未保存的进度（用户直接点浏览器后退），立即保存
+  if (progressTimer) {
+    clearTimeout(progressTimer)
+    progressTimer = null
+    // 同步保存（onBeforeUnmount 支持 async，但不保证等待完成）
+    // 使用 navigator.sendBeacon 作为备选方案
+    if (lastSavedPage > 0) {
+      saveProgress(lastSavedPage) // 尽力而为，不 await
+    }
+  }
   if (renderTask) renderTask.cancel()
   if (pdfDoc) pdfDoc.destroy()
   if (blobUrl) URL.revokeObjectURL(blobUrl)

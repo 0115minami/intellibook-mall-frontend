@@ -119,7 +119,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onActivated } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { ReadOutlined, BookOutlined } from '@ant-design/icons-vue'
@@ -176,6 +176,8 @@ const formatDate = (dateStr: string | null) => {
 }
 
 onMounted(loadLibrary)
+// 从阅读器返回时（如果组件被 keep-alive 缓存），也重新加载
+onActivated(loadLibrary)
 </script>
 
 <style scoped>

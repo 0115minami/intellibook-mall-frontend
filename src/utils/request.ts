@@ -5,7 +5,9 @@ import type { ApiResponse } from '@/types/api'
 
 // 创建 axios 实例
 const request: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE || 'http://localhost:8080',
+  // baseURL 留空，让请求走 Vite 开发代理（/api → http://localhost:8080）
+  // 生产环境通过 VITE_API_BASE 环境变量配置
+  baseURL: import.meta.env.PROD ? (import.meta.env.VITE_API_BASE || '') : '',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

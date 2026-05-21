@@ -88,7 +88,7 @@
         />
       </a-form-item>
 
-      <a-form-item label="封面图片" name="coverImage">
+      <a-form-item label="封面图片">
         <a-upload
           v-model:file-list="coverFileList"
           :before-upload="beforeCoverUpload"
@@ -104,36 +104,38 @@
         <div class="upload-tip">支持JPG、PNG格式，最大5MB</div>
       </a-form-item>
 
-      <a-form-item label="电子书文件" name="ebookFiles">
+      <a-form-item label="电子书文件">
         <div v-for="(item, index) in ebookFileList" :key="index" class="ebook-file-item">
-          <a-select
-            v-model:value="item.fileFormat"
-            style="width: 100px; margin-right: 8px"
-            placeholder="格式"
-          >
-            <a-select-option value="PDF">PDF</a-select-option>
-            <a-select-option value="EPUB">EPUB</a-select-option>
-            <a-select-option value="MOBI">MOBI</a-select-option>
-          </a-select>
-          <a-upload
-            v-model:file-list="item.fileList"
-            :before-upload="(file: any) => beforeEbookUpload(file, index)"
-            :max-count="1"
-            accept=".pdf,.epub,.mobi"
-          >
-            <a-button>
-              <UploadOutlined />
-              选择文件
+          <a-form-item-rest>
+            <a-select
+              v-model:value="item.fileFormat"
+              style="width: 100px; margin-right: 8px"
+              placeholder="格式"
+            >
+              <a-select-option value="PDF">PDF</a-select-option>
+              <a-select-option value="EPUB">EPUB</a-select-option>
+              <a-select-option value="MOBI">MOBI</a-select-option>
+            </a-select>
+            <a-upload
+              v-model:file-list="item.fileList"
+              :before-upload="(file: any) => beforeEbookUpload(file, index)"
+              :max-count="1"
+              accept=".pdf,.epub,.mobi"
+            >
+              <a-button>
+                <UploadOutlined />
+                选择文件
+              </a-button>
+            </a-upload>
+            <a-button
+              v-if="ebookFileList.length > 1"
+              type="text"
+              danger
+              @click="removeEbookFile(index)"
+            >
+              <DeleteOutlined />
             </a-button>
-          </a-upload>
-          <a-button
-            v-if="ebookFileList.length > 1"
-            type="text"
-            danger
-            @click="removeEbookFile(index)"
-          >
-            <DeleteOutlined />
-          </a-button>
+          </a-form-item-rest>
         </div>
         <a-button type="dashed" block @click="addEbookFile">
           <PlusOutlined />
@@ -340,9 +342,6 @@ const handleSubmit = async () => {
       author: formData.author,
       isbn: formData.isbn,
       publisher: formData.publisher,
-      publishDate: formData.publishDate
-        ? formData.publishDate.format('YYYY-MM-DD')
-        : undefined,
       categoryId: formData.categoryId,
       price: Math.round(formData.price * 100), // 转换为分
       language: formData.language,
@@ -351,6 +350,10 @@ const handleSubmit = async () => {
       bookIntro: formData.bookIntro,
     }
 
+    // publishDate 只在有值时才发送，格式为 yyyy/MM/dd（Spring @DateTimeFormat 默认格式）
+    if (formData.publishDate) {
+      submitData.publishDate = formData.publishDate.format('YYYY/MM/DD')
+    }
     // 添加封面
     if (coverFile.value) {
       submitData.coverImage = coverFile.value
