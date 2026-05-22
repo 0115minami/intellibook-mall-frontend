@@ -22,3 +22,10 @@ export const createReview = (params: CreateReviewParam) => {
 export const likeReview = (reviewId: number) => {
     return request.post<any, any>(`/api/review/like/${reviewId}`)
 }
+
+/**
+ * 取消点赞
+ */
+export const unlikeReview = (reviewId: number) => {
+    return request.delete<any, any>(`/api/review/unlike/${reviewId}`)
+}

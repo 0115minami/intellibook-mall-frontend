@@ -195,8 +195,12 @@
                 <!-- 顶栏操作区 -->
                 <div class="comments-header">
                   <h3>全部评论 ({{ reviewTotal }})</h3>
-                  <a-button type="primary" @click="handleWriteReview">
-                    ✍️ 写评价
+                  <a-button
+                    type="primary"
+                    :disabled="hasReviewed"
+                    @click="handleWriteReview"
+                  >
+                    ✍️ {{ hasReviewed ? '已评价' : '写评价' }}
                   </a-button>
                 </div>
 
@@ -213,16 +217,22 @@
                       <div class="review-content">{{ review.content }}</div>
                       <div class="review-footer">
                         <span class="review-time">{{ review.createTime }}</span>
-                        <a-button type="text" size="small" class="btn-like" @click="handleLikeReview(review)">
-                          👍 {{ review.likeCount || 0 }}
+                        <a-button
+                          type="text"
+                          size="small"
+                          :class="['btn-like', { liked: review.isLiked }]"
+                          :loading="likingIds.has(review.reviewId)"
+                          @click="handleLikeReview(review)"
+                        >
+                          {{ review.isLiked ? '👍' : '👍' }}
+                          {{ review.likeCount || 0 }}
                         </a-button>
                       </div>
                       <a-divider style="margin: 16px 0;" />
                     </div>
 
-                    <!-- 分页（如果在真实情况需要） -->
                     <div class="pagination-wrapper" v-if="reviewTotal > reviews.length">
-                       <a-button type="dashed" block @click="loadReviews(true)">加载更多评论...</a-button>
+                      <a-button type="dashed" block @click="loadReviews(true)">加载更多评论...</a-button>
                     </div>
                   </template>
                   
@@ -260,6 +270,34 @@
       </template>
     </div>
 
+    <!-- 发表评论弹窗 -->
+    <a-modal
+      :open="showReviewModal"
+      title="发表评价"
+      :confirm-loading="submittingReview"
+      ok-text="提交评价"
+      cancel-text="取消"
+      @ok="handleSubmitReview"
+      @cancel="showReviewModal = false"
+    >
+      <div class="review-form">
+        <div class="review-form-row">
+          <span class="review-form-label">评分</span>
+          <a-rate v-model:value="reviewForm.rating" allow-half />
+        </div>
+        <div class="review-form-row">
+          <span class="review-form-label">评价内容</span>
+          <a-textarea
+            v-model:value="reviewForm.content"
+            :rows="5"
+            placeholder="分享您的阅读感受（选填）"
+            :maxlength="500"
+            show-count
+          />
+        </div>
+      </div>
+    </a-modal>
+
     <!-- 立即购买弹窗 -->
     <CheckoutModal
       v-if="book"
@@ -280,8 +318,8 @@ import MainLayout from '@/components/layout/MainLayout.vue'
 import RecommendSection from '@/components/recommend/RecommendSection.vue'
 import CheckoutModal from '@/components/checkout/CheckoutModal.vue'
 import { getEBookDetail } from '@/api/ebook'
-import { getBookReviews } from '@/api/review'
-import { checkFavorite, addFavorite, removeFavorite, checkReadPermission } from '@/api/user-center'
+import { getBookReviews, createReview, likeReview, unlikeReview } from '@/api/review'
+import { checkFavorite, addFavorite, removeFavorite, checkReadPermission, checkReviewed } from '@/api/user-center'
 import { addToCart } from '@/api/cart-order'
 import { useCartStore } from '@/stores/cart'
 import { useAuthStore } from '@/stores/auth'
@@ -306,16 +344,18 @@ const showBuyNow = ref(false)
 const isFavorited = ref(false)
 const isPurchased = ref(false)
 
-// 检查收藏和购买状态
+// 检查收藏、购买和评论状态
 const checkStatus = async (bookId: number) => {
   if (!authStore.isAuthenticated) return
   try {
-    const [favRes, readRes] = await Promise.allSettled([
+    const [favRes, readRes, reviewRes] = await Promise.allSettled([
       checkFavorite(bookId),
       checkReadPermission(bookId),
+      checkReviewed(bookId),
     ])
     if (favRes.status === 'fulfilled') isFavorited.value = favRes.value.isFavorite
     if (readRes.status === 'fulfilled') isPurchased.value = readRes.value.hasPurchased
+    if (reviewRes.status === 'fulfilled') hasReviewed.value = reviewRes.value.hasReviewed
   } catch {
     // 忽略
   }
@@ -327,6 +367,15 @@ const reviewsLoading = ref(false)
 const reviewTotal = ref(0)
 const reviewPage = ref(1)
 const REVIEWS_PAGE_SIZE = 5
+
+// 发表评论弹窗
+const showReviewModal = ref(false)
+const reviewForm = ref({ rating: 5, content: '' })
+const submittingReview = ref(false)
+const hasReviewed = ref(false)
+
+// 点赞中的评论 ID 集合（防止重复点击）
+const likingIds = ref<Set<number>>(new Set())
 
 // ── 计算属性 ──
 const coverUrl = computed(() => {
@@ -498,17 +547,63 @@ const handleWriteReview = () => {
     message.info('请先登录再发表评价')
     return
   }
-  message.info('发表评价功能开发中')
+  if (hasReviewed.value) {
+    message.warning('您已评价过这本书，可在「个人中心 → 我的评论」中编辑')
+    return
+  }
+  reviewForm.value = { rating: 5, content: '' }
+  showReviewModal.value = true
+}
+
+const handleSubmitReview = async () => {
+  if (!reviewForm.value.rating) {
+    message.warning('请选择评分')
+    return
+  }
+  submittingReview.value = true
+  try {
+    await createReview({
+      bookId: book.value!.bookId,
+      rating: reviewForm.value.rating,
+      content: reviewForm.value.content,
+    })
+    message.success('评价发表成功')
+    showReviewModal.value = false
+    hasReviewed.value = true
+    // 重新加载评论列表
+    await loadReviews()
+  } catch (e: any) {
+    message.error(e.message || '发表失败')
+  } finally {
+    submittingReview.value = false
+  }
 }
 
 // ── 点赞评价 ──
-const handleLikeReview = (_review: Review) => {
+const handleLikeReview = async (review: Review) => {
   if (!authStore.isAuthenticated) {
     authModalStore.openLogin()
-    message.info('请先登录即可体验点赞')
+    message.info('请先登录')
     return
   }
-  message.info('点赞评价功能开发中')
+  if (likingIds.value.has(review.reviewId)) return
+
+  likingIds.value.add(review.reviewId)
+  try {
+    if (review.isLiked) {
+      await unlikeReview(review.reviewId)
+      review.isLiked = false
+      review.likeCount = Math.max(0, review.likeCount - 1)
+    } else {
+      await likeReview(review.reviewId)
+      review.isLiked = true
+      review.likeCount++
+    }
+  } catch {
+    message.error('操作失败')
+  } finally {
+    likingIds.value.delete(review.reviewId)
+  }
 }
 
 onMounted(() => {
@@ -746,6 +841,29 @@ onMounted(() => {
 
 .btn-like:hover {
   color: #1890ff;
+}
+
+.btn-like.liked {
+  color: #1890ff;
+  font-weight: 500;
+}
+
+/* 评论表单 */
+.review-form {
+  padding: 8px 0;
+}
+
+.review-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.review-form-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #262626;
 }
 
 .pagination-wrapper {
